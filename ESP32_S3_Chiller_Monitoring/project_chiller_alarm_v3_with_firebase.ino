@@ -237,14 +237,16 @@ void updateWiFiStatus() {
 
 void connectWiFiNonBlocking() {
   if (WiFi.status() == WL_DISCONNECTED || WiFi.status() == WL_IDLE_STATUS) {
-    Serial.printf("[%s] Connecting to WiFi: \"%s\"\n", getTimestamp().c_str(), WIFI_SSID);
+    String ts = getTimestamp();
+    Serial.printf("[%s] Connecting to WiFi: \"%s\"\n", ts.c_str(), WIFI_SSID);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     lastWiFiReconnectAttempt = millis();
   }
 }
 
 void handleWiFiConnect() {
-  Serial.printf("[%s] ✅ WiFi Connected!\n", getTimestamp().c_str());
+  String ts = getTimestamp();
+  Serial.printf("[%s] ✅ WiFi Connected!\n", ts.c_str());
   Serial.printf("    IP Address: %s\n", WiFi.localIP().toString().c_str());
   addLog("WiFi: CON");
   
@@ -254,8 +256,9 @@ void handleWiFiConnect() {
 }
 
 void handleWiFiDisconnect() {
-  Serial.printf("[%s] ⚠️  WiFi Disconnected!\n", getTimestamp().c_str());
-  Serial.printf("[%s] Alarm detection continues offline...\n", getTimestamp().c_str());
+  String ts = getTimestamp();
+  Serial.printf("[%s] ⚠️  WiFi Disconnected!\n", ts.c_str());
+  Serial.printf("[%s] Alarm detection continues offline...\n", ts.c_str());
   addLog("WiFi: DIS");
   
   if (firebase_ready) {
@@ -291,64 +294,70 @@ void handleAlarmChange(uint8_t alarmNum, int newState) {
 }
 
 // ============================================
-// FIREBASE FUNCTIONS
+// FIREBASE FUNCTIONS (FIXED)
 // ============================================
 
 void sendAlarmAlert(uint8_t alarmNum, const char* status) {
+  String ts = getTimestamp();
   FirebaseJson json;
   
   json.set("alarm_number", (long)alarmNum);
   json.set("status", status);
-  json.set("timestamp", getTimestamp());
+  json.set("timestamp", ts.c_str());
   json.set("type", "ALARM_CHANGE");
   
-  String alertKey = String(getTimestamp()).replace(":", "");
+  String alertKey = ts;
+  alertKey.replace(":", "");
   alertKey += "_A" + String(alarmNum);
   
   String path = "/devices/" DEVICE_ID "/alerts/" + alertKey;
   
   if (Firebase.RTDB.setJSON(&fbdo, path.c_str(), &json)) {
-    Serial.printf("[%s] ✅ Alarm alert sent to Firebase\n", getTimestamp().c_str());
+    Serial.printf("[%s] ✅ Alarm alert sent to Firebase\n", ts.c_str());
   } else {
-    Serial.printf("[%s] ❌ Firebase error: %s\n", getTimestamp().c_str(), fbdo.errorReason().c_str());
+    Serial.printf("[%s] ❌ Firebase error: %s\n", ts.c_str(), fbdo.errorReason().c_str());
   }
 }
 
 void sendWiFiStatusAlert(const char* status) {
+  String ts = getTimestamp();
   FirebaseJson json;
   
   json.set("wifi_status", status);
-  json.set("timestamp", getTimestamp());
+  json.set("timestamp", ts.c_str());
   json.set("type", "WIFI_STATUS");
   
-  String alertKey = String(getTimestamp()).replace(":", "");
+  String alertKey = ts;
+  alertKey.replace(":", "");
   alertKey += "_WIFI";
   
   String path = "/devices/" DEVICE_ID "/alerts/" + alertKey;
   
   if (Firebase.RTDB.setJSON(&fbdo, path.c_str(), &json)) {
-    Serial.printf("[%s] ✅ WiFi alert sent to Firebase\n", getTimestamp().c_str());
+    Serial.printf("[%s] ✅ WiFi alert sent to Firebase\n", ts.c_str());
   } else {
-    Serial.printf("[%s] ❌ Firebase error: %s\n", getTimestamp().c_str(), fbdo.errorReason().c_str());
+    Serial.printf("[%s] ❌ Firebase error: %s\n", ts.c_str(), fbdo.errorReason().c_str());
   }
 }
 
 void createEventLog(const char* event) {
+  String ts = getTimestamp();
   FirebaseJson json;
   
   json.set("event", event);
-  json.set("timestamp", getTimestamp());
+  json.set("timestamp", ts.c_str());
   json.set("type", "LOG");
   
-  String logKey = String(getTimestamp()).replace(":", "");
+  String logKey = ts;
+  logKey.replace(":", "");
   logKey += "_LOG";
   
   String path = "/devices/" DEVICE_ID "/event_logs/" + logKey;
   
   if (Firebase.RTDB.setJSON(&fbdo, path.c_str(), &json)) {
-    Serial.printf("[%s] ✅ Event log sent to Firebase\n", getTimestamp().c_str());
+    Serial.printf("[%s] ✅ Event log sent to Firebase\n", ts.c_str());
   } else {
-    Serial.printf("[%s] ❌ Firebase error: %s\n", getTimestamp().c_str(), fbdo.errorReason().c_str());
+    Serial.printf("[%s] ❌ Firebase error: %s\n", ts.c_str(), fbdo.errorReason().c_str());
   }
 }
 
@@ -374,7 +383,8 @@ String getTimestamp() {
 }
 
 void printTimestamped(const char* msg) {
-  Serial.printf("[%s] %s\n", getTimestamp().c_str(), msg);
+  String ts = getTimestamp();
+  Serial.printf("[%s] %s\n", ts.c_str(), msg);
 }
 
 void addLog(const char* message) {
