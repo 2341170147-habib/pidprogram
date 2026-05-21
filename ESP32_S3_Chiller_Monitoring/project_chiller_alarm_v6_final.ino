@@ -120,6 +120,9 @@ int lastAlarm2State = -1;
 unsigned long lastAlarm1ChangeTime = 0;
 unsigned long lastAlarm2ChangeTime = 0;
 
+// Firebase status
+bool initialAlarmsSent = false;
+
 // ============================================
 // FUNCTION DECLARATIONS
 // ============================================
@@ -195,6 +198,28 @@ void loop() {
     
     // Update WiFi status
     updateWiFiStatus();
+    
+    // Send initial alarm state once when Firebase is ready
+    if (!initialAlarmsSent && app.ready() && wifi_connected) {
+        initialAlarmsSent = true;
+        Serial.println("\n📡 Sending initial alarm state to Firebase...\n");
+        
+        // Send current alarm 1 state
+        const char* alarm1Status = (lastAlarm1State == LOW) ? "AKTIF" : "NORMAL";
+        sendAlarmAlert(1, alarm1Status);
+        delay(500);
+        
+        // Send current alarm 2 state
+        const char* alarm2Status = (lastAlarm2State == LOW) ? "AKTIF" : "NORMAL";
+        sendAlarmAlert(2, alarm2Status);
+        delay(500);
+        
+        // Send WiFi status
+        sendWiFiStatusAlert("CONNECTED");
+        delay(500);
+        
+        Serial.println("\n✅ Initial alarm states sent!\n");
+    }
     
     // Check Alarm 1
     if (millis() - lastAlarm1ChangeTime >= STATE_CHANGE_LOCKOUT) {
@@ -272,6 +297,12 @@ void updateWiFiStatus() {
     if (currentWiFiConnected != wifi_connected) {
         wifi_connected = currentWiFiConnected;
         wifi_connected ? handleWiFiConnect() : handleWiFiDisconnect();
+        
+        // Reset initial alarms sent flag if WiFi disconnects
+        if (!wifi_connected) {
+            initialAlarmsSent = false;
+        }
+        
         updateDisplay();
     }
     
@@ -327,6 +358,8 @@ void handleAlarmChange(uint8_t alarmNum, int newState) {
     
     if (app.ready()) {
         sendAlarmAlert(alarmNum, (newState == LOW) ? "AKTIF" : "NORMAL");
+    } else {
+        Serial.printf("[%s] ⚠️  Firebase not ready, offline mode\n", getTimestamp().c_str());
     }
 }
 
@@ -345,7 +378,7 @@ void sendAlarmAlert(uint8_t alarmNum, const char* status) {
     Database.set<String>(aClient, alarmPath + "/timestamp", ts, processData, "RTDB_Alarm_Timestamp");
     Database.set<String>(aClient, alarmPath + "/type", "ALARM_CHANGE", processData, "RTDB_Alarm_Type");
     
-    Serial.printf("[%s] 📤 Alarm %d alert sent to Firebase\n", ts.c_str(), alarmNum);
+    Serial.printf("[%s] 📤 Alarm %d alert sent to Firebase (Status: %s)\n", ts.c_str(), alarmNum, status);
 }
 
 void sendWiFiStatusAlert(const char* status) {
@@ -357,7 +390,7 @@ void sendWiFiStatusAlert(const char* status) {
     Database.set<String>(aClient, wifiPath + "/timestamp", ts, processData, "RTDB_WiFi_Timestamp");
     Database.set<String>(aClient, wifiPath + "/type", "WIFI_STATUS", processData, "RTDB_WiFi_Type");
     
-    Serial.printf("[%s] 📤 WiFi status alert sent to Firebase\n", ts.c_str());
+    Serial.printf("[%s] 📤 WiFi status alert sent to Firebase (Status: %s)\n", ts.c_str(), status);
 }
 
 void createEventLog(const char* event) {
