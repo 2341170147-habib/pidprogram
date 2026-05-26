@@ -30,9 +30,9 @@
 #define WIFI_SSID "OPPO F9"
 #define WIFI_PASSWORD "1234567881"
 
-#define Web_API_KEY "AIzaSyB5RmZyN3fMAU54Yx9HzatqHT1yp8lYeSs"
-#define DATABASE_URL "https://percobaan-c496e-default-rtdb.asia-southeast1.firebasedatabase.app/"
-#define USER_EMAIL "admin1@gmail.com"
+#define Web_API_KEY "AIzaSyDn1qY_KGlxvpRGdv8vatZFzLOF2sscoLg"
+#define DATABASE_URL "https://pp-chiller-alarm-notification-default-rtdb.asia-southeast1.firebasedatabase.app/"
+#define USER_EMAIL "adminchiller@gmail.com"
 #define USER_PASS "admin1234"
 
 // ============================================
@@ -122,6 +122,7 @@ unsigned long lastAlarm2ChangeTime = 0;
 
 // Firebase status
 bool initialAlarmsSent = false;
+bool lastFirebaseReady = false;
 
 // ============================================
 // FUNCTION DECLARATIONS
@@ -199,6 +200,18 @@ void loop() {
     // Update WiFi status
     updateWiFiStatus();
     
+    // Check Firebase status change and update display
+    bool currentFirebaseReady = app.ready();
+    if (currentFirebaseReady != lastFirebaseReady) {
+        lastFirebaseReady = currentFirebaseReady;
+        if (currentFirebaseReady) {
+            Serial.println("\n✅ Firebase Ready!");
+        } else {
+            Serial.println("\n⚠️  Firebase Not Ready");
+        }
+        updateDisplay();
+    }
+    
     // Send initial alarm state once when Firebase is ready
     if (!initialAlarmsSent && app.ready() && wifi_connected) {
         initialAlarmsSent = true;
@@ -212,10 +225,6 @@ void loop() {
         // Send current alarm 2 state
         const char* alarm2Status = (lastAlarm2State == LOW) ? "AKTIF" : "NORMAL";
         sendAlarmAlert(2, alarm2Status);
-        delay(500);
-        
-        // Send WiFi status
-        sendWiFiStatusAlert("CONNECTED");
         delay(500);
         
         Serial.println("\n✅ Initial alarm states sent!\n");
@@ -543,10 +552,10 @@ void displayAlarmStatus() {
     tft.setCursor(5, 42);
     tft.printf("WiFi: %s", wifi_connected ? "CON" : "DIS");
     
-    int fbColor = app.ready() ? COLOR_GREEN : COLOR_RED;
+    int fbColor = lastFirebaseReady ? COLOR_GREEN : COLOR_RED;
     tft.setTextColor(fbColor);
     tft.setCursor(5, 52);
-    tft.printf("FB: %s", app.ready() ? "RDY" : "...");
+    tft.printf("FB: %s", lastFirebaseReady ? "RDY" : "...");
     
     tft.drawLine(0, 62, 128, 62, COLOR_WHITE);
     
